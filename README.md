@@ -79,6 +79,7 @@ TODO
   * **Orig**: Original file
   * **Size:{W}x{H}**: Reduced image
 * **UserId**: User ID by IDP
+* **UserIdx**: Same as `UserId` when `Attr` is `Orig`. Otherwise, empty.
 * **CType**: Content Type
 * **TS**: Created at
 * **Size**: Image size(bytes)
