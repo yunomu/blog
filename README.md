@@ -77,7 +77,7 @@ TODO
 * **Key**: S3 object key. Not reused. randomized string.
 * **Attr**: Attributes of this object
   * **Orig**: Original file
-  * **Size:{W}x{H}**: Reduced image
+  * **Rep:{W}x{H}**: Reduced replica
 * **UserId**: User ID by IDP
 * **UserIdx**: Same as `UserId` when `Attr` is `Orig`. Otherwise, empty.
 * **CType**: Content Type
