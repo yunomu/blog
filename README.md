@@ -71,7 +71,7 @@ TODO
 |Size    |N   |     |
 |W       |N   |     |
 |H       |N   |     |
-|Ext     |S   |     |
+|Status  |S   |     |
 |UserIdx |S   |     |
 ### Attributes
 * **Key**: S3 object key. Not reused. randomized string.
@@ -84,7 +84,7 @@ TODO
 * **TS**: Created at
 * **Size**: Image size(bytes)
 * **W**,**H**: Widht and height
-* **Ext**: Extension
+* **Status**: reserved|available|deleted
 ### Index: UserIndex
 |AttrName|Key  |
 |--------|-----|
