@@ -66,6 +66,7 @@ TODO
 |Key     |S   |Hash |
 |Attr    |S   |Range|
 |UserId  |S   |     |
+|Name    |S   |     |
 |CType   |S   |     |
 |TS      |N   |     |
 |Size    |N   |     |
@@ -80,11 +81,12 @@ TODO
   * **Rep:{W}x{H}**: Reduced replica
 * **UserId**: User ID by IDP
 * **UserIdx**: Same as `UserId` when `Attr` is `Orig`. Otherwise, empty.
+* **Name**: Filename
 * **CType**: Content Type
 * **TS**: Created at
 * **Size**: Image size(bytes)
 * **W**,**H**: Widht and height
-* **Status**: reserved|available|deleted
+* **Status**: reserved|available|deleting|deleted
 ### Index: UserIndex
 |AttrName|Key  |
 |--------|-----|
