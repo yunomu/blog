@@ -33,6 +33,8 @@ Resources:
       LogoutURLs:
         - !Ref LogoutURL
       AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows:
+        - code
       AllowedOAuthScopes:
         - email
         - openid
