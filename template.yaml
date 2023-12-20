@@ -1,0 +1,290 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::Serverless-2016-10-31
+Description: blog console
+
+Parameters:
+  #  ConsoleDomainName:
+  #    Type: String
+  #  Certificate:
+  #    Type: String
+  UserPoolId:
+    Type: String
+  CallbackURL:
+    Type: String
+  LogoutURL:
+    Type: String
+  UserNameIndex:
+    Type: String
+    Default: NameIndex
+  FileUserIndex:
+    Type: String
+    Default: UserIndex
+
+Resources:
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref UserPoolId
+      SupportedIdentityProviders:
+        - COGNITO
+      GenerateSecret: false
+      CallbackURLs:
+        - !Ref CallbackURL
+      LogoutURLs:
+        - !Ref LogoutURL
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - email
+        - openid
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      IdTokenValidity: 1
+      AccessTokenValidity: 1
+      RefreshTokenValidity: 30
+      TokenValidityUnits:
+        IdToken: "hours"
+        AccessToken: "hours"
+        RefreshToken: "days"
+
+  UserTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: Id
+          AttributeType: S
+        - AttributeName: Attr
+          AttributeType: S
+        - AttributeName: Name
+          AttributeType: S
+      KeySchema:
+        - AttributeName: Id
+          KeyType: HASH
+        - AttributeName: Attr
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: !Ref UserNameIndex
+          KeySchema:
+            - AttributeName: Name
+              KeyType: HASH
+          Projection:
+            ProjectionType: KEYS_ONLY
+
+  FileTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: Key
+          AttributeType: S
+        - AttributeName: Attr
+          AttributeType: S
+        - AttributeName: UserIdx
+          AttributeType: S
+        - AttributeName: TS
+          AttributeType: N
+      KeySchema:
+        - AttributeName: Key
+          KeyType: HASH
+        - AttributeName: Attr
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: !Ref FileUserIndex
+          KeySchema:
+            - AttributeName: UserIdx
+              KeyType: HASH
+            - AttributeName: TS
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicPolicy: false
+
+  UserTableReadPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - dynamodb:GetItem
+            Resource:
+              - !GetAtt UserTable.Arn
+              - !Sub
+                - "${TableArn}/index/*"
+                - TableArn: !GetAtt UserTable.Arn
+
+  UserTableWritePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - dynamodb:PutItem
+            Resource:
+              - !GetAtt UserTable.Arn
+              - !Sub
+                - "${TableArn}/index/*"
+                - TableArn: !GetAtt UserTable.Arn
+
+  FileTableReadPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - dynamodb:GetItem
+              - dynamodb:Query
+            Resource:
+              - !GetAtt FileTable.Arn
+              - !Sub
+                - "${TableArn}/index/*"
+                - TableArn: !GetAtt FileTable.Arn
+
+  FileTableWritePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+            Resource:
+              - !GetAtt FileTable.Arn
+              - !Sub
+                - "${TableArn}/index/*"
+                - TableArn: !GetAtt FileTable.Arn
+
+  BucketReadWritePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:PutObject
+              - s3:GetObject
+              - s3:HeadObject
+            Resource:
+              - !Sub
+                - "${BucketArn}/*"
+                - BucketArn: !GetAtt Bucket.Arn
+
+  Api:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: prod
+      CorsConfiguration:
+        AllowHeaders:
+          - Content-Type
+          - Authorization
+        AllowMethods:
+          - POST
+          - GET
+          - PUT
+          - DELETE
+          - OPTIONS
+        AllowOrigins:
+          - '*'
+      Auth:
+        Authorizers:
+          OAuth2Authorizer:
+            IdentitySource: '$request.header.Authorization'
+            JwtConfiguration:
+              audience:
+                - !Ref UserPoolClient
+              issuer: !Sub "https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPoolId}"
+        DefaultAuthorizer: OAuth2Authorizer
+
+  UserFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
+    Properties:
+      CodeUri: api/user/
+      Handler: bootstrap
+      Runtime: provided.al2
+      Policies:
+        - !Ref UserTableReadPolicy
+        - !Ref UserTableWritePolicy
+      Environment:
+        Variables:
+          REGION: !Ref AWS::Region
+          USER_TABLE: !Ref UserTable
+          USER_NAME_INDEX: !Ref UserNameIndex
+      Events:
+        Create:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Method: POST
+            Path: /v1/user
+        Get:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Method: GET
+            Path: /v1/user
+
+  FileFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
+    Properties:
+      CodeUri: api/file/
+      Handler: bootstrap
+      Runtime: provided.al2
+      Policies:
+        - !Ref UserTableReadPolicy
+        - !Ref FileTableReadPolicy
+        - !Ref FileTableWritePolicy
+        - !Ref BucketReadWritePolicy
+      Environment:
+        Variables:
+          REGION: !Ref AWS::Region
+          USER_TABLE: !Ref UserTable
+          USER_NAME_INDEX: !Ref UserNameIndex
+          FILE_TABLE: !Ref FileTable
+          FILE_USER_INDEX: !Ref FileUserIndex
+      Events:
+        Upload:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Method: POST
+            Path: /v1/file
+        List:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Method: GET
+            Path: /v1/file
+        Get:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Method: GET
+            Path: /v1/file/{key}
+        Delete:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Method: DELETE
+            Path: /v1/file/{key}
+
+Outputs:
+  UserPoolClientId:
+    Value: !Ref UserPoolClient

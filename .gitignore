@@ -1,0 +1,8 @@
+/.aws-sam
+
+/go.sum
+
+/console/elm-stuff/
+
+/proto/*/
+/console/src/Proto/
