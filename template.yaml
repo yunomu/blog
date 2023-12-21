@@ -169,7 +169,7 @@ Resources:
                 - "${TableArn}/index/*"
                 - TableArn: !GetAtt FileTable.Arn
 
-  BucketReadWritePolicy:
+  BucketPutPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
       PolicyDocument:
@@ -178,8 +178,6 @@ Resources:
           - Effect: Allow
             Action:
               - s3:PutObject
-              - s3:GetObject
-              - s3:HeadObject
             Resource:
               - !Sub
                 - "${BucketArn}/*"
@@ -253,7 +251,7 @@ Resources:
         - !Ref UserTableReadPolicy
         - !Ref FileTableReadPolicy
         - !Ref FileTableWritePolicy
-        - !Ref BucketReadWritePolicy
+        - !Ref BucketPutPolicy
       Environment:
         Variables:
           REGION: !Ref AWS::Region

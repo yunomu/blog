@@ -11,11 +11,9 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/cloudfront"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/s3"
 
-	"github.com/yunomu/blog/lib/cdn"
 	"github.com/yunomu/blog/lib/filedb"
 	"github.com/yunomu/blog/lib/randstr"
 	"github.com/yunomu/blog/lib/storage"
@@ -82,7 +80,6 @@ func main() {
 	fileUserIndex := os.Getenv("FILE_USER_INDEX")
 	userTable := os.Getenv("USER_TABLE")
 	userNameIndex := os.Getenv("USER_NAME_INDEX")
-	distributionId := os.Getenv("DISTRIBUTION_ID")
 	region := os.Getenv("REGION")
 
 	seed := time.Now().UnixNano()
@@ -126,10 +123,6 @@ func main() {
 		storage.NewS3(
 			s3.New(sess),
 			bucket,
-		),
-		cdn.NewCloudFront(
-			cloudfront.New(sess),
-			distributionId,
 		),
 		randstr.NewMathRand(
 			rand.New(rand.NewSource(seed)),

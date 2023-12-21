@@ -20,7 +20,6 @@ import (
 
 	apipb "github.com/yunomu/blog/proto/api"
 
-	"github.com/yunomu/blog/lib/cdn"
 	"github.com/yunomu/blog/lib/filedb"
 	"github.com/yunomu/blog/lib/randstr"
 	"github.com/yunomu/blog/lib/storage"
@@ -52,7 +51,6 @@ type Handler struct {
 	userdb  userdb.DB
 	filedb  filedb.DB
 	storage storage.Storage
-	cdn     cdn.CDN
 	rand    randstr.Generator
 
 	marshaler   protojson.MarshalOptions
@@ -77,14 +75,14 @@ func NewHandler(
 	userdb userdb.DB,
 	filedb filedb.DB,
 	storage storage.Storage,
-	cdn cdn.CDN,
 	rand randstr.Generator,
 	options ...Option,
 ) *Handler {
 	h := &Handler{
-		userdb: userdb,
-		filedb: filedb,
-		cdn:    cdn,
+		userdb:  userdb,
+		filedb:  filedb,
+		storage: storage,
+		rand:    rand,
 
 		marshaler: protojson.MarshalOptions{
 			EmitUnpopulated: true,
