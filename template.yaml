@@ -3,10 +3,10 @@ Transform: AWS::Serverless-2016-10-31
 Description: blog console
 
 Parameters:
-  #  ConsoleDomainName:
-  #    Type: String
-  #  Certificate:
-  #    Type: String
+  SiteDomainName:
+    Type: String
+  Certificate:
+    Type: String
   UserPoolId:
     Type: String
   CallbackURL:
@@ -19,6 +19,9 @@ Parameters:
   FileUserIndex:
     Type: String
     Default: UserIndex
+  CloudFrontManagedCachePolicy:
+    Type: String
+    Default: "658327ea-f89d-4fab-a63d-7e88639e58f6"
 
 Resources:
   UserPoolClient:
@@ -208,6 +211,88 @@ Resources:
                 - !Ref UserPoolClient
               issuer: !Sub "https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPoolId}"
         DefaultAuthorizer: OAuth2Authorizer
+
+  CloudFrontOriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Ref AWS::StackName
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  CloudFrontApiCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub "${AWS::StackName}-AuthApiCachePolicy"
+        DefaultTTL: 3600
+        MaxTTL: 3600
+        MinTTL: 1
+        ParametersInCacheKeyAndForwardedToOrigin:
+          CookiesConfig:
+            CookieBehavior: none
+          HeadersConfig:
+            HeaderBehavior: whitelist
+            Headers:
+              - Authorization
+          QueryStringsConfig:
+            QueryStringBehavior: all
+          EnableAcceptEncodingBrotli: True
+          EnableAcceptEncodingGzip: True
+
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultRootObject: index.html
+        Aliases:
+          - !Ref SiteDomainName
+        ViewerCertificate:
+          AcmCertificateArn: !Ref Certificate
+          MinimumProtocolVersion: TLSv1.2_2021
+          SslSupportMethod: sni-only
+        CacheBehaviors:
+          - TargetOriginId: !Sub "api-${Api}"
+            CachePolicyId: !Ref CloudFrontApiCachePolicy
+            PathPattern: /v1/*
+            ViewerProtocolPolicy: https-only
+            AllowedMethods:
+              - GET
+              - HEAD
+              - DELETE
+              - OPTIONS
+              - PATCH
+              - POST
+              - PUT
+        DefaultCacheBehavior:
+          CachePolicyId: !Ref CloudFrontManagedCachePolicy
+          TargetOriginId: !Sub "s3-${Bucket}"
+          ViewerProtocolPolicy: https-only
+          AllowedMethods:
+            - GET
+            - HEAD
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+        Origins:
+          - Id: !Sub "s3-${Bucket}"
+            DomainName: !GetAtt Bucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt CloudFrontOriginAccessControl.Id
+            S3OriginConfig:
+              OriginAccessIdentity: ""
+          - Id: !Sub "api-${Api}"
+            DomainName: !Sub "${Api}.execute-api.${AWS::Region}.amazonaws.com"
+            OriginPath: !Sub "/${ApiprodStage}"
+            CustomOriginConfig:
+              HTTPSPort: 443
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols:
+                - TLSv1.2
+              OriginReadTimeout: 30
+              OriginKeepaliveTimeout: 5
 
   UserFunction:
     Type: AWS::Serverless::Function

@@ -3,7 +3,7 @@ PROTO_ELM_TARGETS=console/src/Proto/Api.elm
 
 .PHONY: build test proto prot-clean
 
-build: proto
+build: proto test
 	CGO_ENALBLED=0 sam build
 
 test:
