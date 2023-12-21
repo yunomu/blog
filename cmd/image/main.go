@@ -3,15 +3,12 @@ package image
 import (
 	"context"
 	"flag"
-	"image"
 	"log/slog"
 	"os"
 
-	_ "image/gif"
-	_ "image/jpeg"
-	_ "image/png"
-
 	"github.com/google/subcommands"
+
+	"github.com/yunomu/blog/lib/image"
 )
 
 type Command struct {
@@ -22,7 +19,7 @@ func NewCommand() *Command {
 }
 
 func (c *Command) Name() string     { return "image" }
-func (c *Command) Synopsis() string { return "image utils" }
+func (c *Command) Synopsis() string { return "image resize" }
 func (c *Command) Usage() string {
 	return `
 `
@@ -33,13 +30,13 @@ func (c *Command) SetFlags(f *flag.FlagSet) {
 }
 
 func (c *Command) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
-	img, s, err := image.Decode(os.Stdin)
+	buf, err := image.Resize(os.Stdin)
 	if err != nil {
-		slog.Error("image.Decode", "err", err)
+		slog.Error("Reize", "err", err)
 		return subcommands.ExitFailure
 	}
 
-	slog.Info("decoded", "s", s, "rect", img.Bounds())
+	buf.WriteTo(os.Stdout)
 
 	return subcommands.ExitSuccess
 }
