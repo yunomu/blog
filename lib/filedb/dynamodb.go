@@ -2,6 +2,7 @@ package filedb
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -14,12 +15,8 @@ import (
 )
 
 const (
-	status_RESERVED  = "reserved"
-	status_AVAILABLE = "available"
-	status_DELETING  = "deleting"
-	status_DELETED   = "deleted"
-
-	attr_ORIGIN = "orig"
+	attr_ORIGIN         = "orig"
+	attr_REPLICA_FORMAT = "rep:%s"
 )
 
 type DynamoDBRecord struct {
@@ -95,9 +92,10 @@ func (db *DynamoDB) Reserve(ctx context.Context, key, userId string) (int64, err
 	item, err := dynamodbattribute.MarshalMap(&DynamoDBRecord{
 		Key:       key,
 		Attr:      attr_ORIGIN,
+		Name:      attr_ORIGIN,
 		UserId:    userId,
 		UserIdx:   userId,
-		Status:    status_RESERVED,
+		Status:    Status_RESERVED,
 		Timestamp: ts,
 	})
 	if err != nil {
@@ -106,7 +104,7 @@ func (db *DynamoDB) Reserve(ctx context.Context, key, userId string) (int64, err
 	}
 
 	expr, err := expression.NewBuilder().
-		WithCondition(expression.AttributeNotExists(expression.Name("TS"))).
+		WithCondition(expression.AttributeNotExists(expression.Name("Attr"))).
 		Build()
 	if err != nil {
 		db.logger.Error("create expression error at create")
@@ -134,16 +132,15 @@ func (db *DynamoDB) Reserve(ctx context.Context, key, userId string) (int64, err
 	return ts, nil
 }
 
-func (db *DynamoDB) CreateCommit(ctx context.Context, key, name, contentType string, timestamp int64, size, width, height int) error {
+func (db *DynamoDB) CreateCommit(ctx context.Context, key, contentType string, timestamp int64, size, width, height int) error {
 	expr, err := expression.NewBuilder().
 		WithCondition(expression.Equal(expression.Name("TS"), expression.Value(timestamp))).
 		WithUpdate(
-			expression.Set(expression.Name("Name"), expression.Value(name)).
-				Set(expression.Name("CType"), expression.Value(contentType)).
+			expression.Set(expression.Name("CType"), expression.Value(contentType)).
 				Set(expression.Name("Size"), expression.Value(size)).
 				Set(expression.Name("W"), expression.Value(width)).
 				Set(expression.Name("H"), expression.Value(height)).
-				Set(expression.Name("Status"), expression.Value(status_AVAILABLE)),
+				Set(expression.Name("Status"), expression.Value(Status_AVAILABLE)),
 		).
 		Build()
 	if err != nil {
@@ -162,6 +159,53 @@ func (db *DynamoDB) CreateCommit(ctx context.Context, key, name, contentType str
 		ExpressionAttributeNames:  expr.Names(),
 		ExpressionAttributeValues: expr.Values(),
 	}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (db *DynamoDB) CreateReplica(ctx context.Context, key, name, userId, contentType string, size, width, height int) error {
+	ts := getTimestamp()
+	item, err := dynamodbattribute.MarshalMap(&DynamoDBRecord{
+		Key:       key,
+		Attr:      fmt.Sprintf(attr_REPLICA_FORMAT, name),
+		Name:      name,
+		UserId:    userId,
+		Status:    Status_AVAILABLE,
+		Timestamp: ts,
+		Size:      size,
+		Width:     width,
+		Height:    height,
+	})
+	if err != nil {
+		db.logger.Error("marshal error at create replica")
+		return err
+	}
+
+	expr, err := expression.NewBuilder().
+		WithCondition(expression.AttributeNotExists(expression.Name("Attr"))).
+		Build()
+	if err != nil {
+		db.logger.Error("build expression error at create replica")
+		return err
+	}
+
+	if _, err := db.client.PutItemWithContext(ctx, &dynamodb.PutItemInput{
+		TableName: aws.String(db.table),
+		Item:      item,
+
+		ConditionExpression:       expr.Condition(),
+		ExpressionAttributeNames:  expr.Names(),
+		ExpressionAttributeValues: expr.Values(),
+	}); err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			case dynamodb.ErrCodeConditionalCheckFailedException:
+				return ErrConflictKey
+			}
+		}
+		db.logger.Error("put item error at create replica")
 		return err
 	}
 
@@ -226,7 +270,7 @@ func (db *DynamoDB) List(ctx context.Context, userId string, options ...ListOpti
 		}
 
 		for _, r := range recs {
-			if r.Status != status_AVAILABLE {
+			if r.Status != Status_AVAILABLE {
 				continue
 			}
 
@@ -241,6 +285,7 @@ func (db *DynamoDB) List(ctx context.Context, userId string, options ...ListOpti
 						Size:      r.Size,
 						Width:     r.Width,
 						Height:    r.Height,
+						Status:    r.Status,
 					},
 				},
 			})
@@ -316,7 +361,7 @@ func (db *DynamoDB) Get(ctx context.Context, key string) (*File, error) {
 
 	var ret File
 	for _, r := range recs {
-		if r.Status != status_AVAILABLE {
+		if r.Status != Status_AVAILABLE {
 			continue
 		}
 
@@ -329,6 +374,7 @@ func (db *DynamoDB) Get(ctx context.Context, key string) (*File, error) {
 			Size:      r.Size,
 			Width:     r.Width,
 			Height:    r.Height,
+			Status:    r.Status,
 		})
 	}
 	if len(ret.Entities) == 0 {
@@ -349,7 +395,7 @@ func (db *DynamoDB) Delete(ctx context.Context, key, userId string, ts int64) (i
 	for _, item := range items {
 		exprBuilder := expression.NewBuilder().
 			WithUpdate(
-				expression.Set(expression.Name("Status"), expression.Value(status_DELETING)).
+				expression.Set(expression.Name("Status"), expression.Value(Status_DELETING)).
 					Set(expression.Name("TS"), expression.Value(newTS)),
 			)
 		if item.Attr == attr_ORIGIN {
@@ -432,7 +478,7 @@ func (db *DynamoDB) DeleteCommit(ctx context.Context, key string, ts int64) erro
 			expr, err := exprBuilder.
 				WithUpdate(
 					expression.Set(expression.Name("TS"), expression.Value(newTS)).
-						Set(expression.Name("Status"), expression.Value(status_DELETED)).
+						Set(expression.Name("Status"), expression.Value(Status_DELETED)).
 						Remove(expression.Name("UserId")).
 						Remove(expression.Name("Name")).
 						Remove(expression.Name("ContentType")).

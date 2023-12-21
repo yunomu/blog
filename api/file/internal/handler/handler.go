@@ -189,7 +189,7 @@ func (h *Handler) upload(ctx context.Context, req *Request) (proto.Message, erro
 		return nil, err
 	}
 
-	if err := h.filedb.CreateCommit(ctx, key, "orig", r.ContentType, ts, len(r.Blob), width, height); err != nil {
+	if err := h.filedb.CreateCommit(ctx, key, r.ContentType, ts, len(r.Blob), width, height); err != nil {
 		return nil, err
 	}
 

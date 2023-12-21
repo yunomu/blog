@@ -30,11 +30,13 @@ func (c *Command) SetFlags(f *flag.FlagSet) {
 }
 
 func (c *Command) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
-	buf, err := image.Resize(os.Stdin)
+	buf, rect, err := image.Resize(os.Stdin)
 	if err != nil {
 		slog.Error("Reize", "err", err)
 		return subcommands.ExitFailure
 	}
+
+	slog.Info("Rect", "width", rect.Max.X, "height", rect.Max.Y)
 
 	buf.WriteTo(os.Stdout)
 

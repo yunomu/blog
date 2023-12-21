@@ -35,3 +35,26 @@ func (s *S3) Put(ctx context.Context, key string, contentType string, blob io.Re
 
 	return nil
 }
+
+func (s *S3) Get(ctx context.Context, key string) (io.ReadCloser, error) {
+	out, err := s.client.GetObjectWithContext(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return out.Body, nil
+}
+
+func (s *S3) Delete(ctx context.Context, key string) error {
+	if _, err := s.client.DeleteObjectWithContext(ctx, &s3.DeleteObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(key),
+	}); err != nil {
+		return err
+	}
+
+	return nil
+}

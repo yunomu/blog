@@ -5,12 +5,20 @@ import (
 	"errors"
 )
 
+const (
+	Status_RESERVED  = "reserved"
+	Status_AVAILABLE = "available"
+	Status_DELETING  = "deleting"
+	Status_DELETED   = "deleted"
+)
+
 type Entity struct {
 	Name      string
 	Timestamp int64
 	Size      int
 	Width     int
 	Height    int
+	Status    string
 }
 
 type File struct {
@@ -49,7 +57,8 @@ func SetContinuationToken(token string) ListOption {
 
 type DB interface {
 	Reserve(ctx context.Context, key, userId string) (int64, error)
-	CreateCommit(ctx context.Context, key, name, contentType string, timestamp int64, size, width, height int) error
+	CreateCommit(ctx context.Context, key, contentType string, timestamp int64, size, width, height int) error
+	CreateReplica(ctx context.Context, key, name, userId, contentType string, size, width, height int) error
 	List(ctx context.Context, userId string, options ...ListOption) ([]*File, string, error)
 	Get(ctx context.Context, key string) (*File, error)
 	Delete(ctx context.Context, key, userId string, ts int64) (int64, error)

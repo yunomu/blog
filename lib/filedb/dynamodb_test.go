@@ -23,7 +23,7 @@ func TestDelete(t *testing.T) {
 							"CType":   {S: aws.String("image/jpeg")},
 							"TS":      {N: aws.String("1")},
 							"Size":    {N: aws.String("100")},
-							"Status":  {S: aws.String(status_AVAILABLE)},
+							"Status":  {S: aws.String(Status_AVAILABLE)},
 							"UserIdx": {S: aws.String("user-id")},
 						},
 						{
@@ -34,7 +34,7 @@ func TestDelete(t *testing.T) {
 							"CType":  {S: aws.String("image/jpeg")},
 							"TS":     {N: aws.String("1")},
 							"Size":   {N: aws.String("100")},
-							"Status": {S: aws.String(status_AVAILABLE)},
+							"Status": {S: aws.String(Status_AVAILABLE)},
 						},
 					},
 				}, true)

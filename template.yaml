@@ -75,6 +75,8 @@ Resources:
               KeyType: HASH
           Projection:
             ProjectionType: KEYS_ONLY
+      StreamSpecification:
+        StreamViewType: NEW_IMAGE
 
   FileTable:
     Type: AWS::DynamoDB::Table
@@ -172,6 +174,21 @@ Resources:
                 - "${TableArn}/index/*"
                 - TableArn: !GetAtt FileTable.Arn
 
+  FileTableDeletePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - dynamodb:DeleteItem
+            Resource:
+              - !GetAtt FileTable.Arn
+              - !Sub
+                - "${TableArn}/index/*"
+                - TableArn: !GetAtt FileTable.Arn
+
   BucketPutPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
@@ -181,6 +198,34 @@ Resources:
           - Effect: Allow
             Action:
               - s3:PutObject
+            Resource:
+              - !Sub
+                - "${BucketArn}/*"
+                - BucketArn: !GetAtt Bucket.Arn
+
+  BucketGetPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:GetObject
+            Resource:
+              - !Sub
+                - "${BucketArn}/*"
+                - BucketArn: !GetAtt Bucket.Arn
+
+  BucketDeletePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:DeleteObject
             Resource:
               - !Sub
                 - "${BucketArn}/*"
@@ -369,6 +414,37 @@ Resources:
             ApiId: !Ref Api
             Method: DELETE
             Path: /v1/file/{key}
+
+  ImageFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
+    Properties:
+      CodeUri: lambda/image/
+      Handler: bootstrap
+      Runtime: provided.al2
+      Policies:
+        - !Ref BucketPutPolicy
+        - !Ref BucketGetPolicy
+        - !Ref BucketDeletePolicy
+        - !Ref FileTableReadPolicy
+        - !Ref FileTableWritePolicy
+        - !Ref FileTableDeletePolicy
+      Environment:
+        Variables:
+          REGION: !Ref AWS::Region
+          FILE_TABLE: !Ref FileTable
+          FILE_USER_INDEX: !Ref FileUserIndex
+          DISTRIBUTION: !Ref Distribution
+      Events:
+        DBStream:
+          Type: DynamoDB
+          Properties:
+            Stream: !GetAtt FileTable.StreamArn
+            StartingPosition: LATEST
+            FilterCriteria:
+              Filters:
+                - Pattern: '{"eventName":["UPDATE"],"dynamodb":{"Keys":{"Attr":{"S":["orig"]}}}}'
 
 Outputs:
   UserPoolClientId:
