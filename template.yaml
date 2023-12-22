@@ -373,3 +373,5 @@ Resources:
 Outputs:
   UserPoolClientId:
     Value: !Ref UserPoolClient
+  DistributionDomainName:
+    Value: !GetAtt Distribution.DomainName
