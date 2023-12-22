@@ -161,7 +161,7 @@ func (h *Handler) upload(ctx context.Context, req *Request) (proto.Message, erro
 	ctx, _ = context.WithTimeout(ctx, 5*time.Second)
 	key, ts, err := h.reserveKey(ctx, userId)
 	if err != nil {
-		// TODO
+		return nil, err
 	}
 
 	var width, height int
@@ -183,10 +183,9 @@ func (h *Handler) upload(ctx context.Context, req *Request) (proto.Message, erro
 		}
 	}
 
-	s3Key := fmt.Sprintf("%s/orig", key)
+	s3Key := fmt.Sprintf("files/%s/orig", key)
 
 	if err := h.storage.Put(ctx, s3Key, r.ContentType, bytes.NewReader(r.Blob)); err != nil {
-		// TODO delete table entry
 		return nil, err
 	}
 
