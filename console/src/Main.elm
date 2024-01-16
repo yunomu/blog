@@ -1,19 +1,26 @@
 port module Main exposing (main)
 
+import Api
 import Auth
 import Browser
 import Browser.Events as Events
 import Browser.Navigation as Nav
+import Bytes exposing (Bytes)
 import Element exposing (Element)
 import Element.Lazy as Lazy
+import File exposing (File)
+import File.Select
 import Html exposing (Html)
 import Http
 import Json.Decode as Decoder exposing (Decoder)
-import Proto.Api
+import Lib.Bytes
+import Proto.Api as PB
 import Route exposing (Route)
 import Task
 import Url exposing (Url)
 import Url.Builder as UrlBuilder
+import View.Files
+import View.Index
 
 
 port storeTokens : ( String, String, String ) -> Cmd msg
@@ -44,6 +51,9 @@ type Msg
     | RedirectToLoginForm
     | RedirectToIndex
     | AuthMsg Msg Auth.Msg
+    | ApiResponse Api.Request (Result Http.Error Api.Response)
+    | FileUploadRequested
+    | FilesViewMsg View.Files.Msg
 
 
 type alias Token =
@@ -62,6 +72,7 @@ type alias Model =
     , logoutRedirectURL : String
     , authModel : Auth.Model
     , endpoint : String
+    , filesModel : View.Files.Model
     }
 
 
@@ -77,6 +88,9 @@ init flags url key =
                 , UrlBuilder.string "redirect_uri" flags.authRedirectURL
                 ]
 
+        endpoint =
+            "/v1"
+
         authModel =
             Auth.init flags.authClientId flags.idp flags.authRedirectURL
     in
@@ -86,11 +100,13 @@ init flags url key =
       , loginFormURL = loginFormURL
       , logoutURL = UrlBuilder.crossOrigin flags.idp [ "logout" ] []
       , logoutRedirectURL = flags.logoutRedirectURL
+      , endpoint = endpoint
       , authModel = authModel
-      , endpoint = "/v1"
+      , filesModel = View.Files.init
       }
     , Cmd.batch
         [ Nav.pushUrl key (Url.toString url)
+        , apiRequest endpoint authModel Api.GetUserRequest
         ]
     )
 
@@ -103,6 +119,45 @@ maybe default f =
 maybeCmd : Maybe a -> (a -> Cmd msg) -> Cmd msg
 maybeCmd ma f =
     maybe Cmd.none f ma
+
+
+apiRequest : String -> Auth.Model -> Api.Request -> Cmd Msg
+apiRequest endpoint authModel =
+    Api.request ApiResponse endpoint authModel
+
+
+apiResponse : Model -> Api.Request -> Result Http.Error Api.Response -> ( Model, Cmd Msg )
+apiResponse model request result =
+    case result of
+        Ok res ->
+            case res of
+                Api.UploadResponse r ->
+                    ( { model
+                        | filesModel = View.Files.init
+                      }
+                      -- TODO redirect
+                    , Cmd.none
+                    )
+
+                _ ->
+                    -- TODO
+                    ( model, Cmd.none )
+
+        Err (Http.BadStatus 401) ->
+            -- TODO unauthorized
+            ( model, Cmd.none )
+
+        Err (Http.BadStatus 400) ->
+            case request of
+                Api.GetUserRequest ->
+                    -- TODO uninitialized
+                    ( model, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        Err err ->
+            ( model, Cmd.none )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -135,6 +190,11 @@ update msg model =
                 Route.Index ->
                     ( { model | route = route }
                     , Cmd.none
+                    )
+
+                Route.Files ->
+                    ( { model | route = route }
+                    , apiRequest model.endpoint model.authModel (Api.ListFilesRequest Nothing)
                     )
 
                 _ ->
@@ -175,6 +235,27 @@ update msg model =
             , Nav.pushUrl model.key <| Route.path Route.Index
             )
 
+        ApiResponse request result ->
+            apiResponse model request result
+
+        FileUploadRequested ->
+            ( model
+            , apiRequest model.endpoint
+                model.authModel
+                (Api.UploadRequest
+                    { contentType = View.Files.mime model.filesModel
+                    , blob = View.Files.bytes model.filesModel
+                    }
+                )
+            )
+
+        FilesViewMsg msg_ ->
+            let
+                ( filesModel, cmd ) =
+                    View.Files.update FilesViewMsg msg_ model.filesModel
+            in
+            ( { model | filesModel = filesModel }, cmd )
+
         NOP ->
             ( model, Cmd.none )
 
@@ -184,12 +265,31 @@ subscriptions _ =
     Events.onResize OnResize
 
 
+viewFiles =
+    View.Files.view FilesViewMsg FileUploadRequested
+
+
 view : Model -> Browser.Document Msg
 view model =
     { title = "Blog console"
     , body =
         [ Element.layout [] <|
-            Element.text "hello"
+            case model.route of
+                Route.Index ->
+                    Lazy.lazy View.Index.view model.loginFormURL
+
+                Route.Files ->
+                    Lazy.lazy viewFiles model.filesModel
+
+                Route.AuthCallback _ ->
+                    Element.none
+
+                Route.InitUserForm ->
+                    -- TODO
+                    Element.none
+
+                Route.NotFound url ->
+                    Element.text "NotFound"
         ]
     }
 

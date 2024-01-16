@@ -13,6 +13,8 @@ type Route
         { code : Maybe String
         , state : Maybe String
         }
+    | Files
+    | InitUserForm
     | NotFound Url
 
 
@@ -26,6 +28,7 @@ parser =
     P.oneOf
         [ P.map Index P.top
         , P.map authCallback <| s "callback" <?> Query.string "code" <?> Query.string "state"
+        , P.map Files <| s "files"
         ]
 
 
@@ -51,6 +54,9 @@ path route =
                     [ Maybe.map (B.string "code") params.code
                     , Maybe.map (B.string "state") params.state
                     ]
+
+        Files ->
+            B.absolute [ "files" ] []
 
         _ ->
             B.absolute [] []

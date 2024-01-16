@@ -1,4 +1,4 @@
-.PHONY: build clean release
+.PHONY: build clean release test
 
 ELM_DIR			= src
 SRCS			= $(shell find $(ELM_DIR) -regex '.*\.elm')
@@ -19,6 +19,9 @@ build: $(OUTPUT)
 
 $(OUTPUT): $(SRCS)
 	elm make $(ELM_DIR)/Main.elm --output=$@
+
+test:
+	elm-test
 
 clean:
 	rm -rf $(OUTPUT) $(PUBLISH_DIR) $(TMPDIR)
