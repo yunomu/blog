@@ -105,6 +105,8 @@ Resources:
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
+      StreamSpecification:
+        StreamViewType: NEW_IMAGE
 
   Bucket:
     Type: AWS::S3::Bucket

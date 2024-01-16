@@ -205,7 +205,13 @@ func (h *Handler) list(ctx context.Context, req *Request) (proto.Message, error)
 		return nil, err
 	}
 
-	files, cToken, err := h.filedb.List(ctx, userId, filedb.SetLimit(10))
+	var ops []filedb.ListOption
+	ops = append(ops, filedb.SetLimit(10))
+	if token, ok := req.QueryStringParameters["token"]; ok {
+		ops = append(ops, filedb.SetContinuationToken(token))
+	}
+
+	files, cToken, err := h.filedb.List(ctx, userId, ops...)
 	if err != nil {
 		return nil, err
 	}

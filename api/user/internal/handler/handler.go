@@ -11,6 +11,7 @@ import (
 
 	apipb "github.com/yunomu/blog/proto/api"
 
+	"github.com/yunomu/blog/lib/filedb"
 	"github.com/yunomu/blog/lib/userdb"
 )
 
@@ -136,7 +137,11 @@ func (h *Handler) get(ctx context.Context, req *Request) (proto.Message, error) 
 	}
 
 	user, err := h.db.Get(ctx, userId)
-	if err != nil {
+	if err == filedb.ErrNotFound {
+		return nil, &BadRequest{
+			message: "user not initialized",
+		}
+	} else if err != nil {
 		return nil, err
 	}
 

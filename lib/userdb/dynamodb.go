@@ -173,6 +173,10 @@ func (db *DynamoDB) Get(ctx context.Context, id string) (*User, error) {
 		return nil, err
 	}
 
+	if len(out.Item) == 0 {
+		return nil, ErrNotFound
+	}
+
 	var rec DynamoDBRecord
 	if err := dynamodbattribute.UnmarshalMap(out.Item, &rec); err != nil {
 		db.logger.Error("record unmarshal error at get")
