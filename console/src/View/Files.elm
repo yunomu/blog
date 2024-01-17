@@ -1,4 +1,4 @@
-module View.Files exposing (Model, Msg, bytes, init, mime, update, view)
+module View.Files exposing (Model, Msg, bytes, continuationToken, init, mime, update, view)
 
 import Bytes exposing (Bytes)
 import Element exposing (Element)
@@ -7,6 +7,7 @@ import File.Select
 import Html
 import Html.Attributes as Attr
 import Lib.Bytes
+import Proto.Api as PB
 import Task
 import View.Atom.Button
 
@@ -23,15 +24,19 @@ type alias Model =
     , mime : String
     , preview : Maybe String
     , bytes : List Int
+    , files : List PB.Object
+    , continuationToken : Maybe String
     }
 
 
-init : Model
-init =
+init : List PB.Object -> Maybe String -> Model
+init files ctoken =
     { name = ""
     , mime = ""
     , preview = Nothing
     , bytes = []
+    , files = files
+    , continuationToken = ctoken
     }
 
 
@@ -43,6 +48,11 @@ mime model =
 bytes : Model -> List Int
 bytes model =
     model.bytes
+
+
+continuationToken : Model -> Maybe String
+continuationToken model =
+    model.continuationToken
 
 
 mimes : List String
@@ -114,6 +124,6 @@ view toMsg submitMsg model =
             \prev ->
                 Element.column []
                     [ View.Atom.Button.updateButton submitMsg "Upload"
-                    , Element.html <| Html.img [ Attr.src prev ] []
+                    , Element.html <| Html.img [ Attr.src prev, Attr.style "width" "400px" ] []
                     ]
         ]

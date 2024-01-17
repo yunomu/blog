@@ -3,11 +3,11 @@ module View.Index exposing (view)
 import Element exposing (Element)
 
 
-view : String -> Element msg
-view loginFormURL =
+view : Element msg
+view =
     Element.column []
         [ Element.link []
-            { url = loginFormURL
-            , label = Element.text "Login"
+            { url = "/files"
+            , label = Element.text "Files"
             }
         ]

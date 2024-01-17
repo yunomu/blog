@@ -8,12 +8,7 @@ import Browser.Navigation as Nav
 import Bytes exposing (Bytes)
 import Element exposing (Element)
 import Element.Lazy as Lazy
-import File exposing (File)
-import File.Select
-import Html exposing (Html)
 import Http
-import Json.Decode as Decoder exposing (Decoder)
-import Lib.Bytes
 import Proto.Api as PB
 import Route exposing (Route)
 import Task
@@ -21,6 +16,8 @@ import Url exposing (Url)
 import Url.Builder as UrlBuilder
 import View.Files
 import View.Index
+import View.InitUser
+import View.Org.Header
 
 
 port storeTokens : ( String, String, String ) -> Cmd msg
@@ -54,6 +51,10 @@ type Msg
     | ApiResponse Api.Request (Result Http.Error Api.Response)
     | FileUploadRequested
     | FilesViewMsg View.Files.Msg
+    | HeaderMsg View.Org.Header.Msg
+    | InitUserMsg View.InitUser.Msg
+    | InitUserCommit PB.InitUserRequest
+    | InitUserCancel
 
 
 type alias Token =
@@ -73,6 +74,8 @@ type alias Model =
     , authModel : Auth.Model
     , endpoint : String
     , filesModel : View.Files.Model
+    , headerModel : View.Org.Header.Model
+    , initUserModel : View.InitUser.Model
     }
 
 
@@ -102,7 +105,9 @@ init flags url key =
       , logoutRedirectURL = flags.logoutRedirectURL
       , endpoint = endpoint
       , authModel = authModel
-      , filesModel = View.Files.init
+      , filesModel = View.Files.init [] Nothing
+      , headerModel = View.Org.Header.init loginFormURL Nothing
+      , initUserModel = View.InitUser.init
       }
     , Cmd.batch
         [ Nav.pushUrl key (Url.toString url)
@@ -129,29 +134,59 @@ apiRequest endpoint authModel =
 apiResponse : Model -> Api.Request -> Result Http.Error Api.Response -> ( Model, Cmd Msg )
 apiResponse model request result =
     case result of
-        Ok res ->
-            case res of
-                Api.UploadResponse r ->
+        Ok response ->
+            case response of
+                Api.GetUserResponse res ->
+                    ( model
+                    , Task.perform HeaderMsg <| Task.succeed <| View.Org.Header.UpdateUser <| Just res.name
+                    )
+
+                Api.InitUserResponse ->
                     ( { model
-                        | filesModel = View.Files.init
+                        | initUserModel = View.InitUser.init
+                        , route = Route.Index
                       }
-                      -- TODO redirect
+                    , Cmd.none
+                    )
+
+                Api.UploadResponse res ->
+                    ( model
+                    , apiRequest model.endpoint model.authModel (Api.ListFilesRequest <| View.Files.continuationToken model.filesModel)
+                    )
+
+                Api.ListFilesResponse res ->
+                    ( { model
+                        | filesModel =
+                            View.Files.init res.objects <|
+                                if res.continuationToken == "" then
+                                    Nothing
+
+                                else
+                                    Just res.continuationToken
+                      }
                     , Cmd.none
                     )
 
                 _ ->
-                    -- TODO
                     ( model, Cmd.none )
 
         Err (Http.BadStatus 401) ->
-            -- TODO unauthorized
-            ( model, Cmd.none )
+            case request of
+                Api.GetUserRequest ->
+                    -- do nothing
+                    ( model, Cmd.none )
+
+                _ ->
+                    -- TODO unauthorized refresh and retry
+                    ( model, Cmd.none )
 
         Err (Http.BadStatus 400) ->
             case request of
                 Api.GetUserRequest ->
-                    -- TODO uninitialized
-                    ( model, Cmd.none )
+                    -- user is not initialized
+                    ( { model | route = Route.InitUserForm }
+                    , Cmd.none
+                    )
 
                 _ ->
                     ( model, Cmd.none )
@@ -256,6 +291,31 @@ update msg model =
             in
             ( { model | filesModel = filesModel }, cmd )
 
+        HeaderMsg msg_ ->
+            ( { model
+                | headerModel = View.Org.Header.update msg_ model.headerModel
+              }
+            , Cmd.none
+            )
+
+        InitUserMsg msg_ ->
+            ( { model | initUserModel = View.InitUser.update msg_ model.initUserModel }
+            , Cmd.none
+            )
+
+        InitUserCommit req ->
+            ( model
+            , apiRequest model.endpoint model.authModel (Api.InitUserRequest req)
+            )
+
+        InitUserCancel ->
+            ( { model
+                | route = Route.Index
+                , initUserModel = View.InitUser.init
+              }
+            , Cmd.none
+            )
+
         NOP ->
             ( model, Cmd.none )
 
@@ -265,8 +325,33 @@ subscriptions _ =
     Events.onResize OnResize
 
 
+viewIndex _ =
+    View.Index.view
+
+
 viewFiles =
     View.Files.view FilesViewMsg FileUploadRequested
+
+
+viewInitUserForm =
+    View.InitUser.view
+        { commit = InitUserCommit
+        , cancel = InitUserCancel
+        , toMsg = InitUserMsg
+        }
+
+
+template : Element msg -> Element msg -> Element msg
+template header content =
+    Element.column
+        [ Element.centerX
+        , Element.width Element.fill
+        , Element.padding 5
+        , Element.spacing 20
+        ]
+        [ header
+        , content
+        ]
 
 
 view : Model -> Browser.Document Msg
@@ -274,22 +359,24 @@ view model =
     { title = "Blog console"
     , body =
         [ Element.layout [] <|
-            case model.route of
-                Route.Index ->
-                    Lazy.lazy View.Index.view model.loginFormURL
+            template
+                (Lazy.lazy View.Org.Header.view model.headerModel)
+                (case model.route of
+                    Route.Index ->
+                        Lazy.lazy viewIndex ()
 
-                Route.Files ->
-                    Lazy.lazy viewFiles model.filesModel
+                    Route.Files ->
+                        Lazy.lazy viewFiles model.filesModel
 
-                Route.AuthCallback _ ->
-                    Element.none
+                    Route.AuthCallback _ ->
+                        Element.none
 
-                Route.InitUserForm ->
-                    -- TODO
-                    Element.none
+                    Route.InitUserForm ->
+                        Lazy.lazy viewInitUserForm model.initUserModel
 
-                Route.NotFound url ->
-                    Element.text "NotFound"
+                    Route.NotFound url ->
+                        Element.text "NotFound"
+                )
         ]
     }
 
