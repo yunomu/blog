@@ -14,6 +14,7 @@ import Route exposing (Route)
 import Task
 import Url exposing (Url)
 import Url.Builder as UrlBuilder
+import View.FileUpload
 import View.Files
 import View.Index
 import View.InitUser
@@ -46,11 +47,13 @@ type Msg
     | OnResize Int Int
     | AuthResult Msg (Result Http.Error Auth.Token)
     | RedirectToLoginForm
-    | RedirectToIndex
+    | ChangeRoute Route
     | AuthMsg Msg Auth.Msg
     | ApiResponse Api.Request (Result Http.Error Api.Response)
+    | FileSelected String
+    | FileDelete String Int
     | FileUploadRequested
-    | FilesViewMsg View.Files.Msg
+    | FileUploadMsg View.FileUpload.Msg
     | HeaderMsg View.Org.Header.Msg
     | InitUserMsg View.InitUser.Msg
     | InitUserCommit PB.InitUserRequest
@@ -74,6 +77,7 @@ type alias Model =
     , authModel : Auth.Model
     , endpoint : String
     , filesModel : View.Files.Model
+    , fileUploadModel : View.FileUpload.Model
     , headerModel : View.Org.Header.Model
     , initUserModel : View.InitUser.Model
     }
@@ -106,6 +110,7 @@ init flags url key =
       , endpoint = endpoint
       , authModel = authModel
       , filesModel = View.Files.init [] Nothing
+      , fileUploadModel = View.FileUpload.init
       , headerModel = View.Org.Header.init loginFormURL Nothing
       , initUserModel = View.InitUser.init
       }
@@ -150,7 +155,10 @@ apiResponse model request result =
                     )
 
                 Api.UploadResponse res ->
-                    ( model
+                    ( { model
+                        | fileUploadModel = View.FileUpload.init
+                        , route = Route.Files
+                      }
                     , apiRequest model.endpoint model.authModel (Api.ListFilesRequest <| View.Files.continuationToken model.filesModel)
                     )
 
@@ -167,8 +175,14 @@ apiResponse model request result =
                     , Cmd.none
                     )
 
-                _ ->
+                Api.GetFileResponse res ->
+                    -- TODO show file detail
                     ( model, Cmd.none )
+
+                Api.DeleteFileResponse res ->
+                    ( model
+                    , Task.perform ChangeRoute <| Task.succeed Route.Files
+                    )
 
         Err (Http.BadStatus 401) ->
             case request of
@@ -217,14 +231,9 @@ update msg model =
                     , maybeCmd arg.code <|
                         \code ->
                             Auth.tokenRequest RedirectToLoginForm
-                                (AuthMsg RedirectToIndex)
+                                (AuthMsg <| ChangeRoute Route.Index)
                                 model.authModel
                                 (Auth.AuthorizationCode code)
-                    )
-
-                Route.Index ->
-                    ( { model | route = route }
-                    , Cmd.none
                     )
 
                 Route.Files ->
@@ -265,31 +274,41 @@ update msg model =
             , cmd
             )
 
-        RedirectToIndex ->
-            ( model
-            , Nav.pushUrl model.key <| Route.path Route.Index
+        ChangeRoute route ->
+            ( { model | route = route }
+            , maybeCmd (Route.path route) <| Nav.pushUrl model.key
             )
 
         ApiResponse request result ->
             apiResponse model request result
+
+        FileSelected key ->
+            ( model
+            , apiRequest model.endpoint model.authModel (Api.GetFileRequest key)
+            )
+
+        FileDelete key version ->
+            ( model
+            , apiRequest model.endpoint model.authModel (Api.DeleteFileRequest key { timestamp = version })
+            )
 
         FileUploadRequested ->
             ( model
             , apiRequest model.endpoint
                 model.authModel
                 (Api.UploadRequest
-                    { contentType = View.Files.mime model.filesModel
-                    , blob = View.Files.bytes model.filesModel
+                    { contentType = View.FileUpload.mime model.fileUploadModel
+                    , blob = View.FileUpload.bytes model.fileUploadModel
                     }
                 )
             )
 
-        FilesViewMsg msg_ ->
+        FileUploadMsg msg_ ->
             let
-                ( filesModel, cmd ) =
-                    View.Files.update FilesViewMsg msg_ model.filesModel
+                ( fileUploadModel, cmd ) =
+                    View.FileUpload.update FileUploadMsg msg_ model.fileUploadModel
             in
-            ( { model | filesModel = filesModel }, cmd )
+            ( { model | fileUploadModel = fileUploadModel }, cmd )
 
         HeaderMsg msg_ ->
             ( { model
@@ -330,7 +349,15 @@ viewIndex _ =
 
 
 viewFiles =
-    View.Files.view FilesViewMsg FileUploadRequested
+    View.Files.view
+        { selected = FileSelected
+        , delete = FileDelete
+        , upload = ChangeRoute Route.FileUpload
+        }
+
+
+viewFileUpload =
+    View.FileUpload.view FileUploadMsg FileUploadRequested
 
 
 viewInitUserForm =
@@ -367,6 +394,9 @@ view model =
 
                     Route.Files ->
                         Lazy.lazy viewFiles model.filesModel
+
+                    Route.FileUpload ->
+                        Lazy.lazy viewFileUpload model.fileUploadModel
 
                     Route.AuthCallback _ ->
                         Element.none

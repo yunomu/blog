@@ -14,6 +14,7 @@ type Route
         , state : Maybe String
         }
     | Files
+    | FileUpload
     | InitUserForm
     | NotFound Url
 
@@ -45,21 +46,25 @@ catMaybes ls =
             catMaybes xs
 
 
-path : Route -> String
+path : Route -> Maybe String
 path route =
     case route of
         AuthCallback params ->
-            B.absolute [ "callback" ] <|
-                catMaybes
-                    [ Maybe.map (B.string "code") params.code
-                    , Maybe.map (B.string "state") params.state
-                    ]
+            Just <|
+                B.absolute [ "callback" ] <|
+                    catMaybes
+                        [ Maybe.map (B.string "code") params.code
+                        , Maybe.map (B.string "state") params.state
+                        ]
+
+        Index ->
+            Just <| B.absolute [] []
 
         Files ->
-            B.absolute [ "files" ] []
+            Just <| B.absolute [ "files" ] []
 
         _ ->
-            B.absolute [] []
+            Nothing
 
 
 fromUrl : Url -> Route
