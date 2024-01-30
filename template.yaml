@@ -108,7 +108,7 @@ Resources:
       StreamSpecification:
         StreamViewType: NEW_IMAGE
 
-  Bucket:
+  PublishBucket:
     Type: AWS::S3::Bucket
     Properties:
       PublicAccessBlockConfiguration:
@@ -191,7 +191,7 @@ Resources:
                 - "${TableArn}/index/*"
                 - TableArn: !GetAtt FileTable.Arn
 
-  BucketPutPolicy:
+  PublishBucketPutPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
       PolicyDocument:
@@ -203,9 +203,9 @@ Resources:
             Resource:
               - !Sub
                 - "${BucketArn}/*"
-                - BucketArn: !GetAtt Bucket.Arn
+                - BucketArn: !GetAtt PublishBucket.Arn
 
-  BucketGetPolicy:
+  PublishBucketGetPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
       PolicyDocument:
@@ -217,9 +217,9 @@ Resources:
             Resource:
               - !Sub
                 - "${BucketArn}/*"
-                - BucketArn: !GetAtt Bucket.Arn
+                - BucketArn: !GetAtt PublishBucket.Arn
 
-  BucketDeletePolicy:
+  PublishBucketDeletePolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
       PolicyDocument:
@@ -231,7 +231,7 @@ Resources:
             Resource:
               - !Sub
                 - "${BucketArn}/*"
-                - BucketArn: !GetAtt Bucket.Arn
+                - BucketArn: !GetAtt PublishBucket.Arn
 
   Api:
     Type: AWS::Serverless::HttpApi
@@ -315,7 +315,7 @@ Resources:
               - PUT
         DefaultCacheBehavior:
           CachePolicyId: !Ref CloudFrontManagedCachePolicy
-          TargetOriginId: !Sub "s3-${Bucket}"
+          TargetOriginId: !Sub "s3-${PublishBucket}"
           ViewerProtocolPolicy: https-only
           AllowedMethods:
             - GET
@@ -325,8 +325,8 @@ Resources:
             ResponseCode: 200
             ResponsePagePath: /index.html
         Origins:
-          - Id: !Sub "s3-${Bucket}"
-            DomainName: !GetAtt Bucket.RegionalDomainName
+          - Id: !Sub "s3-${PublishBucket}"
+            DomainName: !GetAtt PublishBucket.RegionalDomainName
             OriginAccessControlId: !GetAtt CloudFrontOriginAccessControl.Id
             S3OriginConfig:
               OriginAccessIdentity: ""
@@ -383,7 +383,7 @@ Resources:
         - !Ref UserTableReadPolicy
         - !Ref FileTableReadPolicy
         - !Ref FileTableWritePolicy
-        - !Ref BucketPutPolicy
+        - !Ref PublishBucketPutPolicy
       Environment:
         Variables:
           REGION: !Ref AWS::Region
@@ -426,9 +426,9 @@ Resources:
       Handler: bootstrap
       Runtime: provided.al2
       Policies:
-        - !Ref BucketPutPolicy
-        - !Ref BucketGetPolicy
-        - !Ref BucketDeletePolicy
+        - !Ref PublishBucketPutPolicy
+        - !Ref PublishBucketGetPolicy
+        - !Ref PublishBucketDeletePolicy
         - !Ref FileTableReadPolicy
         - !Ref FileTableWritePolicy
         - !Ref FileTableDeletePolicy
@@ -451,5 +451,7 @@ Resources:
 Outputs:
   UserPoolClientId:
     Value: !Ref UserPoolClient
+  PublishBucket:
+    Value: !Ref PublishBucket
   DistributionDomainName:
     Value: !GetAtt Distribution.DomainName
