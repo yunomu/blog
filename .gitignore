@@ -1,6 +1,4 @@
 /.aws-sam
 /samconfig.toml
 
-/go.sum
-
 /proto/*/
