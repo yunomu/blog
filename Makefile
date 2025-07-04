@@ -8,6 +8,7 @@ build: proto test
 
 test:
 	sam validate --lint
+	go mod tidy
 	go test ./...
 
 proto: $(PROTO_TARGETS) $(PROTO_ELM_TARGETS)
