@@ -114,6 +114,21 @@ Resources:
       PublicAccessBlockConfiguration:
         BlockPublicPolicy: false
 
+  PublishBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref PublishBucket
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub "arn:aws:s3:::${PublishBucket}/*"
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${Distribution}"
+
   UserTableReadPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
@@ -328,8 +343,7 @@ Resources:
           - Id: !Sub "s3-${PublishBucket}"
             DomainName: !GetAtt PublishBucket.RegionalDomainName
             OriginAccessControlId: !GetAtt CloudFrontOriginAccessControl.Id
-            S3OriginConfig:
-              OriginAccessIdentity: ""
+            S3OriginConfig: {}
           - Id: !Sub "api-${Api}"
             DomainName: !Sub "${Api}.execute-api.${AWS::Region}.amazonaws.com"
             OriginPath: !Sub "/${ApiprodStage}"
