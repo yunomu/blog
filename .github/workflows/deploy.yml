@@ -9,6 +9,8 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: AWS
+    env:
+      SAM_CLI_TELEMETRY: 0
     permissions:
       id-token: write
       contents: read
