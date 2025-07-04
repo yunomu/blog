@@ -3,14 +3,14 @@ PROTO_ELM_TARGETS=console/src/Proto/Api.elm
 
 .PHONY: build test proto proto-clean mod
 
-build: mod proto test
+build: mod test
 	CGO_ENALBLED=0 sam build
 
 test: mod
 	sam validate --lint
 	go test ./...
 
-mod:
+mod: proto
 	go mod tidy
 
 proto: $(PROTO_TARGETS) $(PROTO_ELM_TARGETS)
