@@ -1,8 +1,19 @@
 name: Deploy to AWS
 
-on:  push:    branches:      - main
+on:
+  push:
+    branches:
+      - main
 
-jobs:  deploy:    runs-on: ubuntu-latest    environment: AWS    permissions:      id-token: write      contents: read    steps:      - uses: actions/checkout@v3
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: AWS
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v3
 
       - name: Set up Go
         uses: actions/setup-go@v4
@@ -12,21 +23,34 @@ jobs:  deploy:    runs-on: ubuntu-latest    environment: AWS    permissions:    
       - name: Install jq
         run: sudo apt-get -y install jq
 
-      
-
       - name: Run tests
         run: make test
 
-      - name: Configure AWS credentials        uses: aws-actions/configure-aws-credentials@v4        with:          aws-access-key-id: ${{ vars.AWS_ACCESS_KEY_ID }}          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}          aws-region: ap-northeast-1
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ vars.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-1
 
-      - name: Setup SAM        uses: aws-actions/setup-sam@v2
+      - name: Setup SAM
+        uses: aws-actions/setup-sam@v2
 
-      - name: Build        run: make
+      - name: Build
+        run: make
 
-      - name: Deploy        run: |          sam deploy --no-fail-on-empty-changeset \            --stack-name ${{ vars.STACK_NAME }} \            --resolve-s3 \            --capabilities CAPABILITY_IAM \            --parameter-overrides \            SiteDomainName=${{ vars.SITE_DOMAIN_NAME }}             Certificate=${{ secrets.CERTIFICATE }}             UserPoolId=${{ vars.USER_POOL_ID }}             CallbackURL=${{ vars.CALLBACK_URL }}             LogoutURL=${{ vars.LOGOUT_URL }}
-
-      
+      - name: Deploy
+        run: |
+          sam deploy --no-fail-on-empty-changeset \
+            --stack-name ${{ vars.STACK_NAME }} \
+            --resolve-s3 \
+            --capabilities CAPABILITY_IAM \
+            --parameter-overrides \
+            SiteDomainName=${{ vars.SITE_DOMAIN_NAME }} \
+            Certificate=${{ secrets.CERTIFICATE }} \
+            UserPoolId=${{ vars.USER_POOL_ID }} \
+            CallbackURL=${{ vars.CALLBACK_URL }} \
+            LogoutURL=${{ vars.LOGOUT_URL }}
 
       - name: Invalidate CloudFront cache
         run: ./invalidate.sh ${{ vars.STACK_NAME }}
-
