@@ -22,8 +22,19 @@ jobs:
         with:
           go-version: '1.22.4'
 
+      - name: Install protoc-gen-go
+        run: go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+
       - name: Install jq
         run: sudo apt-get -y install jq
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18' # Adjust Node.js version as needed
+
+      - name: Install protoc-gen-elm
+        run: npm install -g protoc-gen-elm
 
       - name: Build
         run: make
