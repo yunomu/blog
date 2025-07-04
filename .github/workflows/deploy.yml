@@ -39,6 +39,9 @@ jobs:
       - name: Install protoc-gen-elm
         run: npm install -g protoc-gen-elm
 
+      - name: Setup SAM
+        uses: aws-actions/setup-sam@v2
+
       - name: Build
         run: make
 
@@ -48,9 +51,6 @@ jobs:
           aws-access-key-id: ${{ vars.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-northeast-1
-
-      - name: Setup SAM
-        uses: aws-actions/setup-sam@v2
 
       - name: Deploy
         run: |
