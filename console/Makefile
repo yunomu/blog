@@ -17,7 +17,7 @@ TARGET			= $(PUBLISH_DIR)/main.js
 
 build: $(OUTPUT)
 
-$(OUTPUT): $(SRCS)
+$(OUTPUT): $(SRCS) elm.json
 	elm make $(ELM_DIR)/Main.elm --output=$@
 
 test:

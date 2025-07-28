@@ -6,7 +6,6 @@ import File exposing (File)
 import File.Select
 import Html
 import Html.Attributes as Attr
-import Lib.Bytes
 import Proto.Api as PB
 import Task
 import View.Atom.Button

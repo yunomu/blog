@@ -1,12 +1,12 @@
 module View.FileUpload exposing (Model, Msg, bytes, init, mime, update, view)
 
 import Bytes exposing (Bytes)
+import Bytes.Encode as BE
 import Element exposing (Element)
 import File exposing (File)
 import File.Select
 import Html
 import Html.Attributes as Attr
-import Lib.Bytes
 import Proto.Api as PB
 import Task
 import View.Atom.Button
@@ -23,7 +23,7 @@ type alias Model =
     { name : String
     , mime : String
     , preview : Maybe String
-    , bytes : List Int
+    , bytes : Bytes
     }
 
 
@@ -32,7 +32,7 @@ init =
     { name = ""
     , mime = ""
     , preview = Nothing
-    , bytes = []
+    , bytes = BE.encode <| BE.string ""
     }
 
 
@@ -41,7 +41,7 @@ mime model =
     model.mime
 
 
-bytes : Model -> List Int
+bytes : Model -> Bytes
 bytes model =
     model.bytes
 
@@ -84,7 +84,7 @@ update toMsg msg model =
             )
 
         ToBytes bs ->
-            ( { model | bytes = Lib.Bytes.bytesToList bs }
+            ( { model | bytes = bs }
             , Cmd.none
             )
 
