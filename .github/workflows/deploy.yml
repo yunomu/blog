@@ -33,7 +33,7 @@ jobs:
 
 
       - name: Install protoc-gen-elm
-        run: go install github.com/yunomu/protoc-gen-elm@latest
+        run: go install github.com/yunomu/protoc-gen-elm@v2.0.1
 
       - name: Setup SAM
         uses: aws-actions/setup-sam@v2
