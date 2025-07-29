@@ -61,5 +61,23 @@ jobs:
             CallbackURL=${{ vars.CALLBACK_URL }} \
             LogoutURL=${{ vars.LOGOUT_URL }}
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Install Elm
+        run: npm install -g elm@0.19.1
+
+      - name: Install uglifyjs
+        run: npm install -g uglify-js
+
+      - name: Build console
+        run: make release
+        working-directory: ./console
+
+      - name: Upload console
+        run: ./console/scripts/upload.sh ${{ vars.STACK_NAME }}
+
       - name: Invalidate CloudFront cache
-        run: ./invalidate.sh ${{ vars.STACK_NAME }}
+        run: ./console/scripts/invalidate.sh ${{ vars.STACK_NAME }}
