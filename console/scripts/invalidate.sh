@@ -23,7 +23,7 @@ echo "Invalidating cache for distribution: ${DISTRIBUTION_ID}"
 
 aws cloudfront create-invalidation \
   --distribution-id "${DISTRIBUTION_ID}" \
-  --paths "/favicon.ico" "/index.html" "/main.js"
+  --paths "/favicon.ico" "/index.html" "/main.js" "/config.json"
 
 echo "Invalidation request sent successfully."
 

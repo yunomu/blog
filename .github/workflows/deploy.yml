@@ -76,6 +76,9 @@ jobs:
         run: make release
         working-directory: ./console
 
+      - name: Generate config from stack
+        run: ./console/scripts/generate_config_from_stack.sh ${{ vars.STACK_NAME }}
+
       - name: Upload console
         run: ./console/scripts/upload.sh ${{ vars.STACK_NAME }}
 
