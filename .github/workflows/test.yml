@@ -11,8 +11,18 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v4
         with:
-          go-version: '1.x'
+          go-version: '1.22.4'
+
+      - name: Install protoc
+        uses: arduino/setup-protoc@v3
+
+      - name: Install protoc-gen-go
+        run: go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+
+      - name: Install protoc-gen-elm
+        run: go install github.com/yunomu/protoc-gen-elm@latest
+
       - name: Run test
         run: make test
