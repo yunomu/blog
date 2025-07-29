@@ -21,7 +21,7 @@ $(OUTPUT): $(SRCS) elm.json
 	elm make $(ELM_DIR)/Main.elm --output=$@
 
 test:
-	elm-test
+	npx elm-test
 
 clean:
 	rm -rf $(OUTPUT) $(PUBLISH_DIR) $(TMPDIR)
