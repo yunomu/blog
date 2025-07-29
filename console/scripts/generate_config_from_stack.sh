@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -eu
+set -eux
 
 if [ $# -ne 1 ]; then
   echo "Usage: $0 <STACK_NAME>"
@@ -8,6 +8,17 @@ if [ $# -ne 1 ]; then
 fi
 
 STACK_NAME=$1
+
+# Function to resolve SSM parameters
+resolve_ssm_parameter() {
+  local param_value=$1
+  if [[ "$param_value" == "{{resolve:ssm:"* ]]; then
+    local ssm_param_name=$(echo "$param_value" | sed -e 's/^{{resolve:ssm://' -e 's/}}$//')
+    echo "$(aws ssm get-parameter --name "${ssm_param_name}" --query Parameter.Value --output text)"
+  else
+    echo "${param_value}"
+  fi
+}
 
 # Get UserPoolClientId from stack outputs
 USER_POOL_CLIENT_ID=$(aws cloudformation describe-stacks \
@@ -21,36 +32,39 @@ if [ -z "${USER_POOL_CLIENT_ID}" ]; then
 fi
 
 # Get CallbackURL and LogoutURL from stack parameters
-AUTH_REDIRECT_URL=$(aws cloudformation describe-stacks \
+AUTH_REDIRECT_URL_RAW=$(aws cloudformation describe-stacks \
   --stack-name "${STACK_NAME}" \
   --query "Stacks[0].Parameters[?ParameterKey=='CallbackURL'].ParameterValue" \
   --output text)
 
-if [ -z "${AUTH_REDIRECT_URL}" ]; then
+if [ -z "${AUTH_REDIRECT_URL_RAW}" ]; then
   echo "Error: CallbackURL not found in stack parameters for stack: ${STACK_NAME}" >&2
   exit 1
 fi
+AUTH_REDIRECT_URL=$(resolve_ssm_parameter "${AUTH_REDIRECT_URL_RAW}")
 
-LOGOUT_REDIRECT_URL=$(aws cloudformation describe-stacks \
+LOGOUT_REDIRECT_URL_RAW=$(aws cloudformation describe-stacks \
   --stack-name "${STACK_NAME}" \
   --query "Stacks[0].Parameters[?ParameterKey=='LogoutURL'].ParameterValue" \
   --output text)
 
-if [ -z "${LOGOUT_REDIRECT_URL}" ]; then
+if [ -z "${LOGOUT_REDIRECT_URL_RAW}" ]; then
   echo "Error: LogoutURL not found in stack parameters for stack: ${STACK_NAME}" >&2
   exit 1
 fi
+LOGOUT_REDIRECT_URL=$(resolve_ssm_parameter "${LOGOUT_REDIRECT_URL_RAW}")
 
 # Get UserPoolId from stack parameters and construct IDP URL
-USER_POOL_ID=$(aws cloudformation describe-stacks \
+USER_POOL_ID_RAW=$(aws cloudformation describe-stacks \
   --stack-name "${STACK_NAME}" \
   --query "Stacks[0].Parameters[?ParameterKey=='UserPoolId'].ParameterValue" \
   --output text)
 
-if [ -z "${USER_POOL_ID}" ]; then
+if [ -z "${USER_POOL_ID_RAW}" ]; then
   echo "Error: UserPoolId not found in stack parameters for stack: ${STACK_NAME}" >&2
   exit 1
 fi
+USER_POOL_ID=$(resolve_ssm_parameter "${USER_POOL_ID_RAW}")
 
 REGION=$(aws configure get region)
 IDP="https://cognito-idp.${REGION}.amazonaws.com/${USER_POOL_ID}"
