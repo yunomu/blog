@@ -469,3 +469,5 @@ Outputs:
     Value: !Ref PublishBucket
   DistributionDomainName:
     Value: !GetAtt Distribution.DomainName
+  Distribution:
+    Value: !Ref Distribution
