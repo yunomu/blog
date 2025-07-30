@@ -530,3 +530,5 @@ Outputs:
     Value: !Ref ConsoleBucket
   ConsoleDistributionDomainName:
     Value: !GetAtt ConsoleDistribution.DomainName
+  ConsoleDistribution:
+    Value: !Ref ConsoleDistribution
