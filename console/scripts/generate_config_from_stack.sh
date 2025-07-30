@@ -80,7 +80,7 @@ if [ -z "${USER_POOL_ID_RAW}" ]; then
 fi
 USER_POOL_ID=$(resolve_ssm_parameter "${USER_POOL_ID_RAW}")
 
-IDP="https://cognito-idp.${REGION}.amazonaws.com/${USER_POOL_ID}"
+IDP="cognito-idp.${REGION}.amazonaws.com/${USER_POOL_ID}"
 
 CONFIG_FILE="$(dirname "$0")"/../static/config.json
 
