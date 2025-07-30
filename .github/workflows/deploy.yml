@@ -56,6 +56,7 @@ jobs:
             --capabilities CAPABILITY_IAM \
             --parameter-overrides \
             SiteDomainName=${{ vars.SITE_DOMAIN_NAME }} \
+            ConsoleDomainName=${{ vars.CONSOLE_DOMAIN_NAME }} \
             Certificate=${{ secrets.CERTIFICATE }} \
             UserPoolId=${{ vars.USER_POOL_ID }} \
             CallbackURL=${{ vars.CALLBACK_URL }} \
