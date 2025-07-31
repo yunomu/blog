@@ -2,12 +2,13 @@
 
 set -eux
 
-if [ $# -ne 1 ]; then
-  echo "Usage: $0 <STACK_NAME>"
+if [ $# -ne 2 ]; then
+  echo "Usage: $0 <STACK_NAME> <IDP>"
   exit 1
 fi
 
 STACK_NAME=$1
+IDP=$2
 
 # Determine region: first try aws configure get region, then fallback to AWS_REGION environment variable
 REGION=$(aws configure get region || echo "")
@@ -66,21 +67,6 @@ if [ -z "${LOGOUT_REDIRECT_URL_RAW}" ]; then
   exit 1
 fi
 LOGOUT_REDIRECT_URL=$(resolve_ssm_parameter "${LOGOUT_REDIRECT_URL_RAW}")
-
-# Get UserPoolId from stack parameters and construct IDP URL
-USER_POOL_ID_RAW=$(aws cloudformation describe-stacks \
-  --region ${REGION} \
-  --stack-name "${STACK_NAME}" \
-  --query "Stacks[0].Parameters[?ParameterKey=='UserPoolId'].ParameterValue" \
-  --output text)
-
-if [ -z "${USER_POOL_ID_RAW}" ]; then
-  echo "Error: UserPoolId not found in stack parameters for stack: ${STACK_NAME}" >&2
-  exit 1
-fi
-USER_POOL_ID=$(resolve_ssm_parameter "${USER_POOL_ID_RAW}")
-
-IDP="cognito-idp.${REGION}.amazonaws.com/${USER_POOL_ID}"
 
 CONFIG_FILE="$(dirname "$0")"/../static/config.json
 

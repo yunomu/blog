@@ -78,7 +78,7 @@ jobs:
         working-directory: ./console
 
       - name: Generate config from stack
-        run: ./console/scripts/generate_config_from_stack.sh ${{ vars.STACK_NAME }}
+        run: ./console/scripts/generate_config_from_stack.sh ${{ vars.STACK_NAME }} ${{ vars.IDP }}
 
       - name: Put config
         run: cp ./console/static/config.json ./console/public/config.json
