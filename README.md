@@ -5,24 +5,28 @@
 ```mermaid
 graph LR
   subgraph blog
-    Article[(Article)]
-    User[(User)]
-    File[(File)]
-    Storage[("Storage\n(Files)")]
-    API[[API]]
+    Article[(ArticleTable)]
+    User[(UserTable)]
+    File[(FileTable)]
+    Storage[(PublishBucket)]
+    API[[Api]]
     ArticleFunction
     UserFunction
     FileFunction
     ImageReduceFunction
     AuthClient
     GenerateFunction
-    CDN[[CDN]]
+    CDN[[Distribution]]
+    ConsoleCDN[[ConsoleDistribution]]
+    ConsoleBucket[(ConsoleBucket)]
   end
 
   Owner((Owner))
   Internet((Internet))
 
-  Owner -- "post/update/publish" --> API
+  Owner -- "read/post/update/publish" --> ConsoleCDN
+  ConsoleCDN -- "post/update/publish" --> API
+  ConsoleCDN -- "read" --> ConsoleBucket
   ArticleFunction --> Article
   UserFunction --> User
   API --> ArticleFunction
