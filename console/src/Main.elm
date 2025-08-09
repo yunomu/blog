@@ -50,6 +50,7 @@ type Msg
     | ChangeRoute Route
     | AuthMsg Msg Auth.Msg
     | ApiResponse Api.Request (Result Http.Error Api.Response)
+    | RetryApiRequest Api.Request
     | FileSelected String
     | FileDelete String Int
     | FileUploadRequested
@@ -191,8 +192,12 @@ apiResponse model request result =
                     ( model, Cmd.none )
 
                 _ ->
-                    -- TODO unauthorized refresh and retry
-                    ( model, Cmd.none )
+                    ( model
+                    , Auth.tokenRequest RedirectToLoginForm
+                        (AuthMsg (RetryApiRequest request))
+                        model.authModel
+                        Auth.RefreshToken
+                    )
 
         Err (Http.BadStatus 400) ->
             case request of
@@ -334,6 +339,9 @@ update msg model =
               }
             , Cmd.none
             )
+
+        RetryApiRequest req ->
+            ( model, Api.request ApiResponse model.endpoint model.authModel req )
 
         NOP ->
             ( model, Cmd.none )
