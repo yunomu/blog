@@ -33,13 +33,30 @@ type alias Model =
     }
 
 
-init : String -> String -> String -> Model
-init clientId idp redirectUri =
+init :
+    Maybe
+        { idToken : String
+        , accessToken : String
+        , refreshToken : String
+        }
+    -> String
+    -> String
+    -> String
+    -> Model
+init initToken clientId idp redirectUri =
     { clientId = clientId
     , tokenEndpoint = UrlBuilder.crossOrigin idp [ "oauth2", "token" ] []
     , userInfoEndpoint = UrlBuilder.crossOrigin idp [ "oauth2", "userInfo" ] []
     , redirectUri = redirectUri
-    , tokens = Nothing
+    , tokens =
+        Maybe.map
+            (\t ->
+                { idToken = t.idToken
+                , accessToken = t.accessToken
+                , refreshToken = t.refreshToken
+                }
+            )
+            initToken
     }
 
 

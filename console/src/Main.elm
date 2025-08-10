@@ -84,6 +84,30 @@ type alias Model =
     }
 
 
+isJust : Maybe a -> Bool
+isJust m =
+    case m of
+        Just _ ->
+            True
+
+        Nothing ->
+            False
+
+
+allJust : List (Maybe a) -> Bool
+allJust ms =
+    case ms of
+        x :: xs ->
+            if isJust x then
+                allJust xs
+
+            else
+                False
+
+        [] ->
+            False
+
+
 init : Flags -> Url -> Nav.Key -> ( Model, Cmd Msg )
 init flags url key =
     let
@@ -99,8 +123,19 @@ init flags url key =
         endpoint =
             "/v1"
 
+        initToken =
+            if allJust [ flags.idToken, flags.accessToken, flags.refreshToken ] then
+                Just
+                    { idToken = Maybe.withDefault "" flags.idToken
+                    , accessToken = Maybe.withDefault "" flags.accessToken
+                    , refreshToken = Maybe.withDefault "" flags.refreshToken
+                    }
+
+            else
+                Nothing
+
         authModel =
-            Auth.init flags.authClientId flags.idp flags.authRedirectURL
+            Auth.init initToken flags.authClientId flags.idp flags.authRedirectURL
     in
     ( { key = key
       , route = Route.fromUrl url
