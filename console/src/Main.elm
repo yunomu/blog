@@ -105,7 +105,7 @@ allJust ms =
                 False
 
         [] ->
-            False
+            True
 
 
 init : Flags -> Url -> Nav.Key -> ( Model, Cmd Msg )
