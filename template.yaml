@@ -25,6 +25,13 @@ Parameters:
   ConsoleDomainName:
     Type: String
 
+Globals:
+  Function:
+    Runtime: provided.al2023
+    Handler: bootstrap
+    Architectures:
+      - x86_64
+
 Resources:
   UserPoolClient:
     Type: AWS::Cognito::UserPoolClient
@@ -416,8 +423,6 @@ Resources:
       BuildMethod: go1.x
     Properties:
       CodeUri: api/user/
-      Handler: bootstrap
-      Runtime: provided.al2
       Policies:
         - !Ref UserTableReadPolicy
         - !Ref UserTableWritePolicy
@@ -446,8 +451,6 @@ Resources:
       BuildMethod: go1.x
     Properties:
       CodeUri: api/file/
-      Handler: bootstrap
-      Runtime: provided.al2
       Policies:
         - !Ref UserTableReadPolicy
         - !Ref FileTableReadPolicy
@@ -492,8 +495,6 @@ Resources:
       BuildMethod: go1.x
     Properties:
       CodeUri: lambda/image/
-      Handler: bootstrap
-      Runtime: provided.al2
       Policies:
         - !Ref PublishBucketPutPolicy
         - !Ref PublishBucketGetPolicy

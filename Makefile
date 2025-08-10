@@ -4,7 +4,7 @@ PROTO_ELM_TARGETS=console/src/Proto/Api.elm
 .PHONY: build test proto proto-clean mod
 
 build: mod test
-	CGO_ENALBLED=0 GOOS=linux GOARCH=amd64 sam build
+	CGO_ENALBLED=0 sam build
 
 test: mod
 	sam validate --lint
