@@ -188,3 +188,33 @@ func (db *DynamoDB) Get(ctx context.Context, id string) (*User, error) {
 		Name: rec.Name,
 	}, nil
 }
+
+func (db *DynamoDB) List(ctx context.Context) ([]*User, error) {
+	var users []*User
+	var rerr error
+	if err := db.client.ScanPagesWithContext(ctx, &dynamodb.ScanInput{
+		TableName: aws.String(db.table),
+		IndexName: aws.String(db.nameIndex),
+	}, func(out *dynamodb.ScanOutput, last bool) bool {
+		var recs []*DynamoDBRecord
+		if err := dynamodbattribute.UnmarshalListOfMaps(out.Items, &recs); err != nil {
+			rerr = err
+			return false
+		}
+
+		for _, rec := range recs {
+			users = append(users, &User{
+				Id:   rec.Id,
+				Name: rec.Name,
+			})
+		}
+
+		return true
+	}); rerr != nil {
+		return nil, rerr
+	} else if err != nil {
+		return nil, err
+	}
+
+	return users, nil
+}

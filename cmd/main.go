@@ -10,6 +10,7 @@ import (
 	"github.com/google/subcommands"
 
 	"github.com/yunomu/blog/cmd/image"
+	"github.com/yunomu/blog/cmd/user"
 )
 
 var (
@@ -18,6 +19,7 @@ var (
 
 func init() {
 	subcommands.Register(image.NewCommand(), "")
+	subcommands.Register(user.NewCommand(), "")
 
 	subcommands.Register(subcommands.CommandsCommand(), "other")
 	subcommands.Register(subcommands.FlagsCommand(), "other")

@@ -19,4 +19,5 @@ var (
 type DB interface {
 	Create(ctx context.Context, userId, name string) (*User, error)
 	Get(ctx context.Context, id string) (*User, error)
+	List(ctx context.Context) ([]*User, error)
 }

@@ -81,6 +81,7 @@ func NewHandler(
 
 	return h
 }
+
 func getUserId(req *Request) (string, error) {
 	auth := req.RequestContext.Authorizer
 	if auth == nil {
