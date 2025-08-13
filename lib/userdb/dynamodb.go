@@ -155,38 +155,50 @@ func (db *DynamoDB) Create(ctx context.Context, userId string, name string) (*Us
 }
 
 func (db *DynamoDB) Get(ctx context.Context, id string) (*User, error) {
-	key, err := dynamodbattribute.MarshalMap(&DynamoDBRecord{
-		Id:   id,
-		Attr: "Main",
-	})
+	expr, err := expression.NewBuilder().
+		WithKeyCondition(expression.KeyEqual(expression.Key("Id"), expression.Value(id))).
+		Build()
 	if err != nil {
-		db.logger.Error("record marshal error at get")
+		db.logger.Error("expression build error at get")
 		return nil, err
 	}
 
-	out, err := db.client.GetItemWithContext(ctx, &dynamodb.GetItemInput{
+	var ret User
+	var rerr error
+	if err := db.client.QueryPagesWithContext(ctx, &dynamodb.QueryInput{
 		TableName: aws.String(db.table),
-		Key:       key,
-	})
-	if err != nil {
-		db.logger.Error("get item error at get")
+
+		KeyConditionExpression:    expr.KeyCondition(),
+		ExpressionAttributeNames:  expr.Names(),
+		ExpressionAttributeValues: expr.Values(),
+	}, func(out *dynamodb.QueryOutput, last bool) bool {
+		for _, item := range out.Items {
+			var rec DynamoDBRecord
+			if err := dynamodbattribute.UnmarshalMap(item, &rec); err != nil {
+				db.logger.Error("record unmarshal error at get")
+				rerr = err
+				return false
+			}
+
+			switch rec.Attr {
+			case "Main":
+				ret.Id = rec.Id
+				ret.Name = rec.Name
+			}
+		}
+
+		return true
+	}); rerr != nil {
+		return nil, rerr
+	} else if err != nil {
 		return nil, err
 	}
 
-	if len(out.Item) == 0 {
+	if ret.Id == "" {
 		return nil, ErrNotFound
 	}
 
-	var rec DynamoDBRecord
-	if err := dynamodbattribute.UnmarshalMap(out.Item, &rec); err != nil {
-		db.logger.Error("record unmarshal error at get")
-		return nil, err
-	}
-
-	return &User{
-		Id:   rec.Id,
-		Name: rec.Name,
-	}, nil
+	return &ret, nil
 }
 
 func (db *DynamoDB) List(ctx context.Context) ([]*User, error) {
