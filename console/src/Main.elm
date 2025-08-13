@@ -234,7 +234,7 @@ apiResponse model request result =
                         Auth.RefreshToken
                     )
 
-        Err (Http.BadStatus 400) ->
+        Err (Http.BadStatus 404) ->
             case request of
                 Api.GetUserRequest ->
                     -- user is not initialized
