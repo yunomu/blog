@@ -90,7 +90,7 @@ func (db *DynamoDB) checkNameConflict(ctx context.Context, name string) error {
 		return err
 	}
 
-	if len(out.Items) >= 0 {
+	if len(out.Items) > 0 {
 		var rec DynamoDBRecord
 		recs := []DynamoDBRecord{}
 		if err := dynamodbattribute.UnmarshalListOfMaps(out.Items, &recs); err != nil {
