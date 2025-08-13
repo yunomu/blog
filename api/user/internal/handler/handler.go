@@ -16,11 +16,19 @@ import (
 )
 
 type BadRequest struct {
+	status  int
 	message string
 }
 
 func (r *BadRequest) Error() string {
 	return r.message
+}
+
+func (r *BadRequest) Status() int {
+	if r.status == 0 {
+		return 400
+	}
+	return r.status
 }
 
 type Logger interface {
@@ -140,6 +148,7 @@ func (h *Handler) get(ctx context.Context, req *Request) (proto.Message, error) 
 	user, err := h.db.Get(ctx, userId)
 	if err == filedb.ErrNotFound {
 		return nil, &BadRequest{
+			status:  404,
 			message: "user not initialized",
 		}
 	} else if err != nil {
@@ -173,7 +182,7 @@ func (h *Handler) Serve(ctx context.Context, req *Request) (*Response, error) {
 	if err != nil {
 		if badReq, ok := err.(*BadRequest); ok {
 			return &Response{
-				StatusCode: 400,
+				StatusCode: badReq.Status(),
 				Body:       badReq.message,
 			}, nil
 		}
