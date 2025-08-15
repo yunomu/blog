@@ -55,6 +55,7 @@ view :
 view msgs model =
     Element.column []
         [ Element.text "Files"
+        , View.Atom.Button.button msgs.upload "Upload"
         , View.Atom.Table.view model.files
             (\_ _ -> False)
             [ { header = "Key"
@@ -72,4 +73,5 @@ view msgs model =
                             ]
               }
             ]
+        , View.Atom.Button.button msgs.upload "Upload"
         ]
