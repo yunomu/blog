@@ -221,18 +221,12 @@ apiResponse model request result =
                     )
 
         Err (Http.BadStatus 401) ->
-            case request of
-                Api.GetUserRequest ->
-                    -- do nothing
-                    ( model, Cmd.none )
-
-                _ ->
-                    ( model
-                    , Auth.tokenRequest RedirectToLoginForm
-                        (AuthMsg (RetryApiRequest request))
-                        model.authModel
-                        Nothing
-                    )
+            ( model
+            , Auth.tokenRequest RedirectToLoginForm
+                (AuthMsg (RetryApiRequest request))
+                model.authModel
+                Nothing
+            )
 
         Err (Http.BadStatus 404) ->
             case request of
@@ -299,8 +293,13 @@ update msg model =
 
                 Err err ->
                     case prevMsg of
-                        RetryApiRequest _ ->
-                            ( model, Nav.load model.loginFormURL )
+                        RetryApiRequest req ->
+                            case req of
+                                Api.GetUserRequest ->
+                                    ( { model | route = Route.Index }, Cmd.none )
+
+                                _ ->
+                                    ( model, Nav.load model.loginFormURL )
 
                         _ ->
                             ( model, Cmd.none )
