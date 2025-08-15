@@ -2,7 +2,6 @@ module Auth exposing
     ( Model
     , Msg
     , Token
-    , TokenRequestType(..)
     , UserInfo
     , init
     , signedRequest
@@ -79,11 +78,6 @@ authTokenDecoder =
         (Decoder.field "token_type" Decoder.string)
 
 
-type TokenRequestType
-    = AuthorizationCode String
-    | RefreshToken
-
-
 toFormParam : List ( String, String ) -> String
 toFormParam =
     String.join "&" << List.map (\( a, b ) -> String.join "=" [ a, b ])
@@ -93,11 +87,25 @@ tokenRequest :
     msg
     -> (Msg -> msg)
     -> Model
-    -> TokenRequestType
+    -> Maybe String
     -> Cmd msg
-tokenRequest redirectToLoginForm toMsg model grantType =
-    case grantType of
-        AuthorizationCode code ->
+tokenRequest redirectToLoginForm toMsg model maybeCode =
+    let
+        refreshTokenRequest tokens =
+            Http.post
+                { url = model.tokenEndpoint
+                , body =
+                    Http.stringBody "application/x-www-form-urlencoded" <|
+                        toFormParam <|
+                            [ ( "grant_type", "refresh_token" )
+                            , ( "refresh_token", tokens.refreshToken )
+                            , ( "client_id", model.clientId )
+                            , ( "redirect_uri", model.redirectUri )
+                            ]
+                , expect = Http.expectJson (toMsg << AuthTokenResponse) authTokenDecoder
+                }
+
+        authorizationCodeRequest code =
             Http.post
                 { url = model.tokenEndpoint
                 , body =
@@ -110,25 +118,25 @@ tokenRequest redirectToLoginForm toMsg model grantType =
                             ]
                 , expect = Http.expectJson (toMsg << AuthTokenResponse) authTokenDecoder
                 }
+    in
+    case ( model.tokens, maybeCode ) of
+        ( Just tokens, _ ) ->
+            if tokens.refreshToken /= "" then
+                refreshTokenRequest tokens
 
-        RefreshToken ->
-            case model.tokens of
-                Just tokens ->
-                    Http.post
-                        { url = model.tokenEndpoint
-                        , body =
-                            Http.stringBody "application/x-www-form-urlencoded" <|
-                                toFormParam <|
-                                    [ ( "grant_type", "refresh_token" )
-                                    , ( "refresh_token", tokens.refreshToken )
-                                    , ( "client_id", model.clientId )
-                                    , ( "redirect_uri", model.redirectUri )
-                                    ]
-                        , expect = Http.expectJson (toMsg << AuthTokenResponse) authTokenDecoder
-                        }
+            else
+                case maybeCode of
+                    Just code ->
+                        authorizationCodeRequest code
 
-                Nothing ->
-                    Task.perform (always redirectToLoginForm) <| Task.succeed ()
+                    Nothing ->
+                        Task.perform (always redirectToLoginForm) <| Task.succeed ()
+
+        ( Nothing, Just code ) ->
+            authorizationCodeRequest code
+
+        ( Nothing, Nothing ) ->
+            Task.perform (always redirectToLoginForm) <| Task.succeed ()
 
 
 type Msg
@@ -155,7 +163,7 @@ signedRequest model req =
         headers =
             maybe req.headers
                 (\tokens ->
-                    Http.header "Authorization" tokens.idToken :: req.headers
+                    Http.header "Authorization" ("Bearer " ++ tokens.accessToken) :: req.headers
                 )
                 model.tokens
     in

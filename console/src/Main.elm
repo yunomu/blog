@@ -231,7 +231,7 @@ apiResponse model request result =
                     , Auth.tokenRequest RedirectToLoginForm
                         (AuthMsg (RetryApiRequest request))
                         model.authModel
-                        Auth.RefreshToken
+                        Nothing
                     )
 
         Err (Http.BadStatus 404) ->
@@ -268,12 +268,10 @@ update msg model =
             case route of
                 Route.AuthCallback arg ->
                     ( model
-                    , maybeCmd arg.code <|
-                        \code ->
-                            Auth.tokenRequest RedirectToLoginForm
-                                (AuthMsg <| ChangeRoute Route.Index)
-                                model.authModel
-                                (Auth.AuthorizationCode code)
+                    , Auth.tokenRequest RedirectToLoginForm
+                        (AuthMsg <| ChangeRoute Route.Index)
+                        model.authModel
+                        arg.code
                     )
 
                 Route.Files ->
@@ -300,7 +298,12 @@ update msg model =
                     )
 
                 Err err ->
-                    ( model, Cmd.none )
+                    case prevMsg of
+                        RetryApiRequest _ ->
+                            ( model, Nav.load model.loginFormURL )
+
+                        _ ->
+                            ( model, Cmd.none )
 
         RedirectToLoginForm ->
             ( model, Nav.load model.loginFormURL )
